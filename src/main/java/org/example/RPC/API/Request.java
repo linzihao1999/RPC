@@ -13,4 +13,16 @@ import java.io.Serializable;
 public class Request implements Serializable {
     @JsonProperty("service")
     private String service;
+
+    @JsonProperty("method")
+    private String method;
+
+    @JsonProperty("paramsTypeCount")
+    private Integer typeCount;
+
+    @JsonProperty("paramsType")
+    private String[] type;
+
+    @JsonProperty("params")
+    private Object[] params;
 }

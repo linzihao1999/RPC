@@ -5,6 +5,8 @@ import org.example.RPC.API.Request;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
@@ -40,14 +42,38 @@ public class RpcServerHandler {
         try {
             ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream());
             Request request = (Request) inputStream.readObject();
-            String serviceName = request.getService();
-            System.out.println(serviceName);
+
+            Object service = serviceMap.get(request.getService());
+
+            Class<?> clazz = Class.forName(request.getService());
+            String[] paramsType = request.getType();
+
+            Method[] methods = clazz.getMethods();
+            Method realMethod = null;
+            for (var method : methods) {
+                if (method.getParameterCount() != paramsType.length) continue;
+                boolean foundMethod = true;
+                for (int i = 0; i < method.getParameterCount(); i++) {
+                    if (!method.getParameterTypes()[i].getName().equals(paramsType[i])) {
+                        foundMethod = false;
+                        break;
+                    }
+                }
+                if (foundMethod) {
+                    realMethod = method;
+                    break;
+                }
+            }
+            assert realMethod != null;
+            Object result = realMethod.invoke(service, request.getParams());
 
             ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream());
-            outputStream.writeObject(serviceMap.get(serviceName));
-        } catch (IOException e) {
+            outputStream.writeObject(result);
+        } catch (IOException | ClassNotFoundException e) {
             throw new RuntimeException(e);
-        } catch (ClassNotFoundException e) {
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
         }
     }
